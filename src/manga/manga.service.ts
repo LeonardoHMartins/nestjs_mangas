@@ -63,10 +63,9 @@ export class MangaService {
           
           capitulos.push(
             {
-              [capNumber]: {
+              capNumber,
               url: caps[i],
               data_lançamento: date[i]
-            }
           })
         }
 
@@ -96,11 +95,10 @@ export class MangaService {
           let capNumber = split[split.length - 1].replaceAll("/", "") 
           
           capitulos.push(
-            {
-              [capNumber]: {
+              {
+              capNumber,
               url: caps[i],
               data_lançamento: date[i]
-            }
           })
         }
 
