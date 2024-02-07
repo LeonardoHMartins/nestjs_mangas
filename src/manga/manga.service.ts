@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import puppeteer from 'puppeteer';
+import { PrismaClient } from '@prisma/client';
+import puppeteer, { Page } from 'puppeteer';
 
 @Injectable()
 export class MangaService {
@@ -65,7 +66,7 @@ export class MangaService {
             {
               capNumber,
               url: caps[i],
-              data_lançamento: date[i]
+              data_lancamento: date[i]
           })
         }
 
@@ -88,24 +89,106 @@ export class MangaService {
 
 
         let capitulos = [];
-        let caps = await page.$$eval('.single-chapter', (el) => el.map((el) => el.querySelectorAll('a')[0].href));
-        let date = await page.$$eval('.single-chapter', (el) => el.map((el) => el.querySelector('small[title^="Capítulo adicionado ao site em"]').textContent.replaceAll("\n", "")));
-        for(let i = 0; i < caps.length; i++){
-          let split = caps[i].split('-');
-          let capNumber = split[split.length - 1].replaceAll("/", "") 
-          
-          capitulos.push(
-              {
-              capNumber,
-              url: caps[i],
-              data_lançamento: date[i]
-          })
+        for (const capitulo of await this.getInfos(page)) {
+          capitulos.push(capitulo);
         }
 
 
         await browser.close();
     
         return capitulos;
+      }
+
+
+      async getReleasesToDB(pages:string = '2'): Promise<any> {
+        const prisma = new PrismaClient()
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        const pagesNumber = parseInt(pages);
+        let resp;
+
+        let capitulos = [];
+        await page.goto("https://lermanga.org/capitulos/");
+
+        for (const capitulo of await this.getInfos(page)) {
+          capitulos.push({capitulo: capitulo.capNumber, nome: capitulo.nome, url: capitulo.url, data_lancamento: capitulo.data_lancamento, created_at: new Date()});
+        }   
+        if(pagesNumber > 1){
+
+        for(let i = 2; i < (pagesNumber + 1); i++){
+          await page.goto(`https://lermanga.org/capitulos/page/${i}/`);
+
+          for (const capitulo of await this.getInfos(page)) {
+            capitulos.push({capitulo: capitulo.capNumber, nome: capitulo.nome,url: capitulo.url, data_lancamento: capitulo.data_lancamento, created_at: new Date()});
+          }
+          setTimeout(() => {
+          }, 1000);
+        }
+        resp =await prisma.manga_releases.createMany(
+          {
+            data:
+              capitulos,
+              skipDuplicates: true,
+          }
+        )
+      } else {
+        resp = await prisma.manga_releases.createMany(
+          {
+            data:
+              capitulos,
+              skipDuplicates: true,
+          }
+        );
+      }
+      
+      await browser.close();   
+
+        return {
+          success: `${resp.count} Dados inseridos na tabela com sucesso!`
+        };
+      }
+
+
+      async getReleasesFromDB(manga:string): Promise<any> {
+        const prisma = new PrismaClient()
+        let resp;
+
+        const search = await prisma.manga_releases.findMany({
+          where: {
+            nome: {
+              contains: manga,
+            }
+          }
+        });
+        if(search){
+          return search
+        }
+
+        return resp; 
+      }
+
+
+
+
+      async getInfos(page: Page): Promise<any> {
+        let capitulos = [];
+        let caps = await page.$$eval('.single-chapter', (el) => el.map((el) => el.querySelectorAll('a')[0].href));
+        let date = await page.$$eval('.single-chapter', (el) => el.map((el) => el.querySelector('small[title^="Capítulo adicionado ao site em"]').textContent.replaceAll("\n", "")));
+        let name = await page.$$eval('.single-chapter a.dynamic-visited', (el) => el.map((el) => el.textContent.trim()));
+        for(let i = 0; i < caps.length; i++){
+          let split = caps[i].split('-');
+          let splitName = name[i].split('–');
+          let capNumber = split[split.length - 1].replaceAll("/", "") 
+          
+          capitulos.push(
+              {
+              capNumber,
+              nome: splitName[0],
+              url: caps[i],
+              data_lancamento: date[i]
+          })
+        }
+        return Promise.resolve(capitulos);
       }
 
 }

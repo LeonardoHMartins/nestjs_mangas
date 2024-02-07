@@ -1,0 +1,29 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model manga {
+  id                    Int @id @default(autoincrement())
+  capitulo              String?             @db.VarChar(255)
+  url                   String?             @db.VarChar(255)
+  data_lancamento       String?             @db.VarChar(255)
+  created_at            DateTime?           @db.Timestamp(0)
+}
+
+model manga_releases {
+  id                    Int @id @default(autoincrement())
+  capitulo              String?             @db.VarChar(255) 
+  nome                  String?             @db.VarChar(255)
+  url                   String?             @db.VarChar(255) @unique
+  data_lancamento       String?             @db.VarChar(255)
+  created_at            DateTime?           @db.Timestamp(0)
+}

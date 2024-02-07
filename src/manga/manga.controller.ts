@@ -6,10 +6,10 @@ export class MangaController {
     constructor(private readonly mangaService: MangaService) {}
 
 
-    //http://localhost:3000/manga/search?manga=uno
-    @Get('search')
+    //http://localhost:3000/manga/search
+    @Post('search')
     search(
-        @Query('manga') search: string,
+        @Body('manga') search: string,
     ){
         return this.mangaService.searchMangas(search);
     }
@@ -24,19 +24,36 @@ export class MangaController {
     
 
      //http://localhost:3000/manga/getchaptersimages
-     @Get('images')
+     @Post('images')
      getChaptersImages(
          @Body('url') url: string,
      ){
          return this.mangaService.getChaptersImages(url);
      }
 
-     //http://localhost:3000/manga/releases?page=2
+     //http://localhost:3000/manga/releases || ?page=2
      @Get('releases')
      releases(
          @Query('page') page?: string,
      ){
          return this.mangaService.getReleases(page);
      }
+
+
+     //http://localhost:3000/manga/releases-db?pages=5
+     @Get('releases-db')
+     releasesToDB(
+         @Query('pages') pages?: string,
+     ){
+         return this.mangaService.getReleasesToDB(pages);
+     }
+
+      //http://localhost:3000/manga/releases-from-db?manga=naruto
+      @Get('releases-from-db')
+      releasesFromDB(
+          @Query('manga') manga: string,
+      ){
+          return this.mangaService.getReleasesFromDB(manga);
+      }
  
 }
