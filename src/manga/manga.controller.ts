@@ -23,7 +23,7 @@ export class MangaController {
     }
     
 
-     //http://localhost:3000/manga/getchaptersimages
+     //http://localhost:3000/manga/images
      @Post('images')
      getChaptersImages(
          @Body('url') url: string,
@@ -48,12 +48,22 @@ export class MangaController {
          return this.mangaService.getReleasesToDB(pages);
      }
 
-      //http://localhost:3000/manga/releases-from-db?manga=naruto
-      @Get('releases-from-db')
+      //http://localhost:3000/manga/releases-from-db
+      @Post('releases-from-db')
       releasesFromDB(
-          @Query('manga') manga: string,
+          @Body('manga') manga: string,
+          @Body('download') download: boolean,
       ){
-          return this.mangaService.getReleasesFromDB(manga);
+          return this.mangaService.getReleasesFromDB(manga, download);
+      }
+
+      //http://localhost:3000/manga/download
+      @Post('download')
+      downloadImage(
+          @Body('url') url: string[],
+      ){
+        console.log(url);
+          return this.mangaService.downloadImage(url);
       }
  
 }

@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Options } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { User, SupabaseClient } from '@supabase/supabase-js';
+import axios from 'axios';
 import puppeteer, { Page } from 'puppeteer';
-
+import * as fs from 'fs';
+import { userInfo } from 'os';
+import { image } from 'image-downloader';
 @Injectable()
 export class MangaService {
+  constructor(private supabase: SupabaseClient) {}
   
     async getChaptersImages(url:string): Promise<any> {
         const browser = await puppeteer.launch();
@@ -149,19 +154,82 @@ export class MangaService {
       }
 
 
-      async getReleasesFromDB(manga:string): Promise<any> {
-        const prisma = new PrismaClient()
-        let resp;
+      async downloadImage(url: string[]) {
+        try {
+          for (let i = 0; i < url.length; i++) {
+            const response = await axios.get(url[i], {
+              responseType: 'arraybuffer',
+            });
+            const part = url[i].split('/');
+            const path = `${part[4]}/${part[5]}`
+    
+            // fs.mkdirSync(`D:/NestProjects/nestjs_mangas/images/${path}`,{recursive: true})
+            let buffer = Buffer.from(response.data);
+            // fs.writeFileSync(`D:/NestProjects/nestjs_mangas/images/${path}/${part[6]}`, buffer);
+            await this.uploadImage(`${path}/${part[6]}`,buffer);
+              
+          }
+        } catch (error) {
+          throw new Error(error.message);
+        }
+        return `${url.length} arquivos foram salvos com sucesso!`;
+      }
+    
+      async uploadImage(filename: string,buffer: Buffer): Promise<string> {
+        const { data, error } = await this.supabase.storage.from('images').upload(
+          filename,
+          buffer,
+          {
+            contentType: 'image/jpeg',
+          },
+        );
+    
+        if (error) {
+          throw new Error(error.message);
+        }
+    
+        return data.path;
+      }
 
-        const search = await prisma.manga_releases.findMany({
-          where: {
-            nome: {
-              contains: manga,
+      async getReleasesFromDB(manga:string, download:boolean = false): Promise<any> {
+        const prisma = new PrismaClient() 
+        let resp;
+        let mangas= [];
+        let search = [];
+        mangas = manga.split(",");
+        for (let index = 0; index < mangas.length; index++) {
+          const element = mangas[index].trim();
+          if(element){
+            let resp: any = {[element] : await prisma.manga_releases.findMany({
+              where: {
+                nome: {
+                  contains: element,
+                }
+              }
+            }
+            )
+          };
+          if(resp){
+            search.push(resp);
+          }
+
+          if(download === true && resp[element] !== undefined){
+            let images = [];
+            for (let index = 0; index < resp[element].length; index++) {
+              const a = resp[element][index];
+              images.push(await this.downloadImage(await this.getChaptersImages(a.url)));
+            }
+            if(images.length > 0){
+              await this.downloadImage(images);
+              return {success: 'Imagens baixadas com sucesso!'}
             }
           }
-        });
-        if(search){
-          return search
+          
+        }
+          
+        }
+        if(search !== undefined && search.length > 0){
+          return search;
         }
 
         return resp; 
